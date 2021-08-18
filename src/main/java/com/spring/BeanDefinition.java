@@ -1,8 +1,8 @@
 package com.spring;
 
 public class BeanDefinition {
-    private Class clazz;
-    private String scope;
+    private Class clazz;//当前bean的类型
+    private String scope;//当前Bean的作用域
 
 
     public Class getClazz() {

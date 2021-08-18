@@ -10,7 +10,6 @@ import java.lang.reflect.Proxy;
 @Component
 public class tgkBeanPostProcessor implements BeanPostProcessor{
 
-
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) {
         if(beanName.equals("userService")){
