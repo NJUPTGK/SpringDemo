@@ -28,12 +28,12 @@ public class tgkBeanPostProcessor implements BeanPostProcessor{
                         @Override
                         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
                             System.out.println("先执行一些代理逻辑");
-
-                            return method.invoke(bean,args);//真正执行UserService
+                            //使用代理的目的是 可以在真正执行UserService的方法之前执行一些代理逻辑
+                            return method.invoke(bean,args);//真正执行UserService的方法
                             //return null;
                         }
                     });
-            return proxyInstance;
+            return proxyInstance;//返回一个代理实例
         }
         return bean;
     }
