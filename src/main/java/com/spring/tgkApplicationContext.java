@@ -21,7 +21,8 @@ public class tgkApplicationContext {
         //解析配置类
         //ComponentScan注解-->扫描路径--->扫描---->BeanDefinition-->BeanDefinitionMap
         scan(configClass);
-        for (Map.Entry<String, BeanDefinition> entry : beanDefinitionMap.entrySet()) {//ConcurrentHashMap会按首字母的顺序进行排序，有的时候会有bug，会有循环依赖的问题
+        for (Map.Entry<String, BeanDefinition> entry : beanDefinitionMap.entrySet()) {//ConcurrentHashMap会按首字母的顺序进行排序，
+            // 有的时候会有bug，会有循环依赖的问题，这个bug已经在getBean方法里修复好
             String beanName = entry.getKey();
             BeanDefinition beanDefinition = entry.getValue();
             if (beanDefinition.getScope().equals("singleton")) {
@@ -63,10 +64,11 @@ public class tgkApplicationContext {
                             //解析类，判断当前bean是单例bean还是原型bean
                             //BeanDefinition
 
-                            if (BeanPostProcessor.class.isAssignableFrom(Clazz)) {
-                                BeanPostProcessor instance = (BeanPostProcessor) Clazz.getDeclaredConstructor().newInstance();
-                                beanPostProcessorList.add(instance);
+                            if (BeanPostProcessor.class.isAssignableFrom(Clazz)) {//判断BeanPostProcessor是不是clazz的父类
+                                BeanPostProcessor instance = (BeanPostProcessor) Clazz.getDeclaredConstructor().newInstance();//实例化
+                                beanPostProcessorList.add(instance);//存到列表里
                             }
+
                             Component componentAnnotation = Clazz.getDeclaredAnnotation(Component.class);//把Component注解拿出来
                             String beanName = componentAnnotation.value();//当前这个类所对应的bean的名字
                             BeanDefinition beanDefinition = new BeanDefinition();
@@ -102,6 +104,11 @@ public class tgkApplicationContext {
             BeanDefinition beanDefinition = beanDefinitionMap.get(beanName);
             if (beanDefinition.getScope().equals("singleton")) {
                 Object o = singletonObjects.get(beanName);
+                if (o == null){//解决了循环依赖的问题
+                    o = createBean(beanName,beanDefinition);
+                    singletonObjects.put(beanName,o);
+
+                }
                 return o;
             } else {
                 Object bean = createBean(beanName, beanDefinition);//创建一个bean  原型bean
@@ -118,8 +125,8 @@ public class tgkApplicationContext {
             Object instance = clazz.getDeclaredConstructor().newInstance();//通过构造方法反射得到一个bean对象
             // 依赖注入
             for (Field declaredField : clazz.getDeclaredFields()) {//把所有的属性拿出来
-                if (declaredField.isAnnotationPresent(Autowired.class)) {
-                    //对属性进行赋值
+                if (declaredField.isAnnotationPresent(Autowired.class)) {//这里有可能会有循环依赖的问题
+                    //对bean有@Autowired的属性进行赋值
                     Object bean = getBean(declaredField.getName());//通过属性的名字来拿到一个bean
                     declaredField.setAccessible(true);//不加这句代码会报错
                     declaredField.set(instance, bean);//给instance赋值
@@ -133,12 +140,19 @@ public class tgkApplicationContext {
 
             for (BeanPostProcessor beanPostProcessor : beanPostProcessorList) {
                 instance = beanPostProcessor.postProcessBeforeInitialization(instance, beanName);
-            }
+            }//执行bean初始化之前的操作
 
+            /*
+            isAssignableFrom()方法是从类继承的角度去判断，instanceof关键字是从实例继承的角度去判断。
+            isAssignableFrom()方法是判断是否为某个类的父类，instanceof关键字是判断是否某个类的子类。
+            使用方法：
+            父类.class.isAssignableFrom(子类.class)
+            子类实例 instanceof 父类类型
+             */
             //初始化
             if (instance instanceof InitializingBean) {
                 try {
-                    ((InitializingBean) instance).afterPropertiesSet();
+                    ((InitializingBean) instance).afterPropertiesSet();//执行初始化操作
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -146,8 +160,7 @@ public class tgkApplicationContext {
 
             for (BeanPostProcessor beanPostProcessor : beanPostProcessorList) {
                 instance = beanPostProcessor.postProcessAfterInitialization(instance, beanName);
-            }
-            //BeanPostProcessor
+            }//执行bean初始化之后的操作
 
 
             return instance;
